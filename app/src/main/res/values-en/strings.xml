@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BaseAppCompose</string>
+    <string name="app_name">TestAppCompose</string>
     <string name="please_check_your_network">Please check your network</string>
     <string name="vietnamese">Vietnamese</string>
     <string name="btn_login">Login</string>

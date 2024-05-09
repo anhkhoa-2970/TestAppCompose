@@ -2,7 +2,6 @@ package vn.aris.baseappcompose.presentation.composes.workout
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,25 +30,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.joda.time.DateTime
 import vn.aris.baseappcompose.R
-import vn.aris.baseappcompose.application
 import vn.aris.baseappcompose.domain.models.AssignmentModel
 import vn.aris.baseappcompose.domain.models.DayDataModel
 import vn.aris.baseappcompose.presentation.viewmodels.WorkoutViewModel
 import vn.aris.baseappcompose.utils.Constants
 import vn.aris.baseappcompose.utils.Utils.parseDateToDateOfWeek
-import vn.aris.baseappcompose.utils.Utils.pxToDp
 
 @Composable
 fun WorkoutScreen(vm: WorkoutViewModel = hiltViewModel()) {
@@ -152,23 +145,41 @@ fun ItemExercise(data: AssignmentModel, size: Int) {
             .clickable {
                 isChecked = !isChecked
             }
-            .padding(start = 20.dp, end = 20.dp)
-            ,
+            .padding(start = 20.dp, end = 20.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd){
-           Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-               Text(text = "${data.title}", maxLines = 1, overflow = TextOverflow.Ellipsis, color = titleColor, fontWeight = FontWeight.Bold)
-               if (workoutStatus(data) == Constants.StatusWorkout.PASS_MISSED) {
-                   Row() {
-                       Text(text = "Missed ", color = Color.Red)
-                       Text(text = handleStatus(data))
-                   }
-               }
-           }
-           if(isChecked){
-               Image(modifier = Modifier.size(30.dp), painter = painterResource(id = R.drawable.ic_check), contentDescription = null)
-           }
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                Text(
+                    text = "${data.title}",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = titleColor,
+                    fontWeight = FontWeight.Bold
+                )
+                if (workoutStatus(data) == Constants.StatusWorkout.PASS_MISSED) {
+                    Row {
+                        Text(text = "Missed ", color = Color.Red)
+                        Text(text = handleStatus(data))
+                    }
+                } else if (workoutStatus(data) == Constants.StatusWorkout.PASS_COMPLETED) {
+                    Text(text = handleStatus(data), color = Color.White)
+                } else if (workoutStatus(data) == Constants.StatusWorkout.TODAY_ASSIGNED || workoutStatus(
+                        data
+                    ) == Constants.StatusWorkout.TODAY_COMPLETED
+                ) {
+                    Text(text = handleStatus(data), color = Color(0xFF1E0A3C))
+                } else {
+                    Text(text = handleStatus(data), color = Color(0xFF7B7E91))
+                }
+            }
+            if (isChecked) {
+                Image(
+                    modifier = Modifier.size(30.dp),
+                    painter = painterResource(id = R.drawable.ic_check),
+                    contentDescription = null
+                )
+            }
         }
     }
 }
@@ -186,6 +197,7 @@ fun workoutStatus(data: AssignmentModel): Constants.StatusWorkout {
                 Constants.StatusWorkout.PASS_MISSED
             }
         }
+
         assignmentTime.toLocalDate() == currentTime.toLocalDate() -> {
             if (data.status == 0) {
                 Constants.StatusWorkout.TODAY_ASSIGNED
@@ -193,6 +205,7 @@ fun workoutStatus(data: AssignmentModel): Constants.StatusWorkout {
                 Constants.StatusWorkout.TODAY_COMPLETED
             }
         }
+
         else -> {
             Constants.StatusWorkout.FUTURE
         }
