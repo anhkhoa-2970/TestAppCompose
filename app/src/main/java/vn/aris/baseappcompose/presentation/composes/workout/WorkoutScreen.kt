@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,10 +37,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.accompanist.systemuicontroller.SystemUiController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import org.joda.time.DateTime
 import vn.aris.baseappcompose.R
 import vn.aris.baseappcompose.domain.models.AssignmentModel
 import vn.aris.baseappcompose.domain.models.DayDataModel
+import vn.aris.baseappcompose.presentation.composes.CustomToast
+import vn.aris.baseappcompose.presentation.composes.ShowProgressDialog
+import vn.aris.baseappcompose.presentation.ui.states.MessageState
+import vn.aris.baseappcompose.presentation.ui.states.ProgressState
 import vn.aris.baseappcompose.presentation.viewmodels.WorkoutViewModel
 import vn.aris.baseappcompose.utils.Constants
 import vn.aris.baseappcompose.utils.Utils.parseDateToDateOfWeek
@@ -47,8 +54,10 @@ import vn.aris.baseappcompose.utils.Utils.parseDateToDateOfWeek
 @Composable
 fun WorkoutScreen(vm: WorkoutViewModel = hiltViewModel()) {
     val workoutUiState by vm.workoutState.collectAsState()
+    val systemUiController: SystemUiController = rememberSystemUiController()
     LaunchedEffect(Unit) {
         vm.fetchWorkout()
+        systemUiController.setStatusBarColor(color = Color(0Xff13A1BE))
     }
 
     Column(
@@ -62,13 +71,23 @@ fun WorkoutScreen(vm: WorkoutViewModel = hiltViewModel()) {
                 Column {
                     ItemCalendar(it)
 
-                    Box(
-                        Modifier
-                            .height(1.dp)
-                            .fillMaxWidth()
-                            .background(Color(0xFF767676))
-                    )
+                    if (workoutUiState.workout?.dayData?.last() != it) {
+                        HorizontalDivider(thickness = 1.dp, color = Color.Gray)
+                    }
                 }
+            }
+        }
+    }
+
+    vm.apply {
+        val uiState by uiState.collectAsState()
+        when (uiState.progressState) {
+            ProgressState.Loading -> ShowProgressDialog()
+            else -> {}
+        }
+        if (uiState.messageState.msg.isNotEmpty()) {
+            CustomToast(message = uiState.messageState.msg, messageType = uiState.messageState.type) {
+                vm.updateMessageState(MessageState())
             }
         }
     }
@@ -79,7 +98,7 @@ fun ItemCalendar(data: DayDataModel) {
     Row(
         Modifier
             .wrapContentHeight()
-            .padding(20.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp)
     ) {
         Column(
             Modifier
@@ -89,7 +108,7 @@ fun ItemCalendar(data: DayDataModel) {
         ) {
             Text(
                 text = parseDateToDateOfWeek(data.date),
-                style = TextStyle(fontSize = 12.sp, color = setColorForDate(data.date))
+                style = TextStyle(fontSize = 12.sp, color = setColorForDay(data.date))
             )
             Text(
                 text = "${DateTime.parse(data.date).dayOfMonth}",
@@ -105,22 +124,19 @@ fun ItemCalendar(data: DayDataModel) {
 fun ItemContentTraining(data: DayDataModel) {
     LazyColumn(
         Modifier
-            .height(
-                70.dp * (data.assignments?.size ?: 1) + 16.dp * ((data.assignments?.size
-                    ?: 1) - 1) + 40.dp
-            )
+            .height(70.dp * (data.assignments?.size ?: 0) + 20 .dp * ((data.assignments?.size ?: 1) - 1) + 36.dp)
             .fillMaxWidth()
     ) {
         items(data.assignments ?: listOf())
         {
-            ItemExercise(it, data.assignments?.size ?: 1)
+            ItemExercise(it)
             Box(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-fun ItemExercise(data: AssignmentModel, size: Int) {
+fun ItemExercise(data: AssignmentModel) {
     var isChecked by remember { mutableStateOf(data.isCheck ?: false) }
     val backgroundColor = when (workoutStatus(data)) {
         Constants.StatusWorkout.PASS_MISSED -> Color(0xFFF7F8FC)
@@ -145,40 +161,22 @@ fun ItemExercise(data: AssignmentModel, size: Int) {
             .clickable {
                 isChecked = !isChecked
             }
-            .padding(start = 20.dp, end = 20.dp),
+            .padding(start = 20.dp, end = 20.dp)
+        ,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd){
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-                Text(
-                    text = "${data.title}",
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = titleColor,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(modifier = Modifier.padding(end = 30.dp), text = "${data.title}", maxLines = 1, overflow = TextOverflow.Ellipsis, color = titleColor, fontWeight = FontWeight.Bold)
                 if (workoutStatus(data) == Constants.StatusWorkout.PASS_MISSED) {
                     Row {
                         Text(text = "Missed ", color = Color.Red)
                         Text(text = handleStatus(data))
                     }
-                } else if (workoutStatus(data) == Constants.StatusWorkout.PASS_COMPLETED) {
-                    Text(text = handleStatus(data), color = Color.White)
-                } else if (workoutStatus(data) == Constants.StatusWorkout.TODAY_ASSIGNED || workoutStatus(
-                        data
-                    ) == Constants.StatusWorkout.TODAY_COMPLETED
-                ) {
-                    Text(text = handleStatus(data), color = Color(0xFF1E0A3C))
-                } else {
-                    Text(text = handleStatus(data), color = Color(0xFF7B7E91))
                 }
             }
-            if (isChecked) {
-                Image(
-                    modifier = Modifier.size(30.dp),
-                    painter = painterResource(id = R.drawable.ic_check),
-                    contentDescription = null
-                )
+            if(isChecked){
+                Image(modifier = Modifier.size(30.dp), painter = painterResource(id = R.drawable.ic_check), contentDescription = null)
             }
         }
     }
@@ -197,7 +195,6 @@ fun workoutStatus(data: AssignmentModel): Constants.StatusWorkout {
                 Constants.StatusWorkout.PASS_MISSED
             }
         }
-
         assignmentTime.toLocalDate() == currentTime.toLocalDate() -> {
             if (data.status == 0) {
                 Constants.StatusWorkout.TODAY_ASSIGNED
@@ -205,7 +202,6 @@ fun workoutStatus(data: AssignmentModel): Constants.StatusWorkout {
                 Constants.StatusWorkout.TODAY_COMPLETED
             }
         }
-
         else -> {
             Constants.StatusWorkout.FUTURE
         }
@@ -226,5 +222,7 @@ fun handleStatus(data: AssignmentModel): String {
 }
 
 fun setColorForDate(date: String?): Color =
+    if (DateTime.parse(date) == DateTime.now()) Color(0XFF7470EF) else Color(0XFF1E0A3C)
+fun setColorForDay(date: String?): Color =
     if (DateTime.parse(date) == DateTime.now()) Color(0XFF7470EF) else Color(0XFF7B7E91)
 
